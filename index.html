@@ -36,8 +36,8 @@ button.del{background:transparent;color:var(--bad);border:1px solid var(--br)}
 .chk{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:18px;color:var(--tx)}
 .chk input{width:26px;height:26px}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--br);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
-nav button{background:transparent;color:var(--mu);margin:0;padding:8px 2px;font-size:13px;display:flex;flex-direction:column;gap:2px;align-items:center;flex:1}
-nav button span{font-size:24px}
+nav button{background:transparent;color:var(--mu);margin:0;padding:8px 0;font-size:12px;display:flex;flex-direction:column;gap:2px;align-items:center;flex:1}
+nav button span{font-size:22px}
 nav button.on{color:var(--ac)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--tx);color:var(--bg);padding:12px 18px;border-radius:24px;font-size:16px;z-index:9}
 details{margin-top:18px}
@@ -63,7 +63,7 @@ function ymd(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1
 function br(d){var p=d.split('-');return p[2]+'/'+p[1]}
 function num(v){return parseFloat(String(v).replace(',','.'))||0}
 function toast(t){var e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(function(){e.remove()},2200)}
-mes=ymd().slice(0,7);S.ord=S.ord||[];
+mes=ymd().slice(0,7);S.ord=S.ord||[];S.ins=S.ins||[];S.use=S.use||[];
 /* janela de confirmação/pergunta própria: o confirm e o prompt do navegador podem ser bloqueados no app publicado. Retorna uma Promise: true/false (botões), lista de valores (se tiver campos) ou null (terceiro botão) */
 function ask(msg,fields,ok,no,third){return new Promise(function(res){
   var d=document.createElement('div');d.className='ov';
@@ -76,11 +76,11 @@ function ask(msg,fields,ok,no,third){return new Promise(function(res){
   var i0=d.querySelector('input');if(i0)i0.focus();
 })}
 
-var TABS=[['resumo','📊','Resumo'],['vender','🛒','Vender'],['pedidos','📅','Pedidos'],['gastos','💸','Gastos'],['sabores','🍫','Sabores']];
+var TABS=[['resumo','📊','Resumo'],['vender','🛒','Vender'],['pedidos','📅','Pedidos'],['insumos','🧂','Insumos'],['sabores','🍫','Sabores']];
 function go(t){tab=t;render();window.scrollTo(0,0)}
 function render(){
   $('#nav').innerHTML=TABS.map(function(t){return '<button class="'+(t[0]==tab?'on':'')+'" onclick="go(\''+t[0]+'\')"><span>'+t[1]+'</span>'+t[2]+'</button>'}).join('');
-  $('#v').innerHTML=({resumo:vResumo,vender:vVender,pedidos:vPedidos,gastos:vGastos,sabores:vSabores})[tab]();
+  $('#v').innerHTML=({resumo:vResumo,vender:vVender,pedidos:vPedidos,gastos:vGastos,insumos:vInsumos,sabores:vSabores})[tab]();
   if(tab=='vender')calc();
 }
 
@@ -89,22 +89,22 @@ function vResumo(){
   var vs=S.sales.filter(function(s){return s.d.slice(0,7)==mes});
   var ex=S.exp.filter(function(e){return e.d.slice(0,7)==mes});
   var tot=0,cus=0,un=0;
-  vs.forEach(function(s){tot+=s.q*s.p;cus+=s.q*s.c;un+=s.q});
-  var out=0;ex.forEach(function(e){out+=e.v});
+  vs.forEach(function(s){tot+=s.q*s.p;un+=s.q});S.use.forEach(function(u){if(u.d.slice(0,7)==mes)cus+=u.c});
+  var out=0,comp=0;ex.forEach(function(e){comp+=e.v;if(!e.iid)out+=e.v});
   var lucro=tot-cus-out;
   var rec=0,devs={};
   S.sales.forEach(function(s){if(!s.paid){var v=s.q*s.p;rec+=v;var k=s.cli||'Sem nome';devs[k]=(devs[k]||0)+v}});
   var ms=[];for(var i=0;i<12;i++){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);var k=ymd(d).slice(0,7);ms.push('<option value="'+k+'"'+(k==mes?' selected':'')+'>'+d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})+'</option>')}
   var h=alertas()+'<label>Mês</label><select onchange="mes=this.value;render()">'+ms.join('')+'</select>';
-  h+='<div class="card" style="margin-top:12px"><div class="mu">Lucro do mês</div><div class="big '+(lucro>=0?'ok':'bad')+'">'+R(lucro)+'</div><div class="mu">'+un+' trufas vendidas</div></div>';
-  h+='<div class="grid"><div class="card"><div class="mu">Vendido</div><div class="big" style="font-size:20px">'+R(tot)+'</div></div><div class="card"><div class="mu">Custo das trufas</div><div class="big" style="font-size:20px">'+R(cus)+'</div></div><div class="card"><div class="mu">Outros gastos</div><div class="big" style="font-size:20px">'+R(out)+'</div></div><div class="card"><div class="mu">A receber</div><div class="big warn" style="font-size:20px">'+R(rec)+'</div></div></div>';
+  h+='<div class="card" style="margin-top:12px"><div class="mu">Lucro do mês</div><div class="big '+(lucro>=0?'ok':'bad')+'">'+R(lucro)+'</div><div class="mu">'+un+' trufas vendidas</div>'+semPreco()+'</div>';
+  h+='<div class="grid"><div class="card"><div class="mu">Vendido</div><div class="big" style="font-size:20px">'+R(tot)+'</div></div><div class="card"><div class="mu">Insumos usados</div><div class="big" style="font-size:20px">'+R(cus)+'</div></div><div class="card"><div class="mu">Gastos avulsos</div><div class="big" style="font-size:20px">'+R(out)+'</div></div><div class="card"><div class="mu">Comprado no mês</div><div class="big" style="font-size:20px">'+R(comp)+'</div></div><div class="card"><div class="mu">Valor em estoque</div><div class="big" style="font-size:20px">'+R(vest())+'</div></div><div class="card"><div class="mu">A receber</div><div class="big warn" style="font-size:20px">'+R(rec)+'</div></div></div>';
   var ks=Object.keys(devs);
   if(ks.length){h+='<h2>Quem está devendo</h2><div class="card">'+ks.map(function(k){return '<div class="item"><div class="l">'+esc(k)+'</div><b>'+R(devs[k])+'</b></div>'}).join('')+'</div>'}
   h+='<button onclick="zap()">📲 Enviar resumo no WhatsApp</button>';h+='<details><summary class="mu">Backup dos dados</summary><p class="mu">Os dados ficam salvos neste celular. Gere um backup e guarde (por exemplo, mandando para você mesma no WhatsApp).</p><textarea id="bk" placeholder="O backup aparece aqui. Para restaurar, cole o texto aqui."></textarea><button class="sec" onclick="gerar()">Gerar e copiar backup</button><button class="sec" onclick="restaurar()">Restaurar backup</button></details>';
   return h;
 }
 function gerar(){var t=$('#bk');t.value=JSON.stringify(S);t.select();try{navigator.clipboard.writeText(t.value);toast('Backup copiado!')}catch(e){try{document.execCommand('copy');toast('Backup copiado!')}catch(e2){toast('Copie o texto manualmente')}}}
-function restaurar(){var d;try{d=JSON.parse($('#bk').value);if(!d.prods||!d.sales||!d.exp)throw 0}catch(e){toast('Backup inválido');return}ask('Isso substitui os dados atuais. Continuar?',null,'Restaurar').then(function(y){if(y){S=d;S.ord=S.ord||[];save();toast('Dados restaurados');render()}})}
+function restaurar(){var d;try{d=JSON.parse($('#bk').value);if(!d.prods||!d.sales||!d.exp)throw 0}catch(e){toast('Backup inválido');return}ask('Isso substitui os dados atuais. Continuar?',null,'Restaurar').then(function(y){if(y){S=d;S.ord=S.ord||[];S.ins=S.ins||[];S.use=S.use||[];save();toast('Dados restaurados');render()}})}
 
 /* ---------- VENDER ---------- */
 function vVender(){
@@ -145,20 +145,59 @@ function delG(id){ask('Apagar este gasto?',null,'Apagar').then(function(y){if(y)
 
 /* ---------- SABORES ---------- */
 function vSabores(){
-  var h='<div class="card"><label>Nome do sabor</label><input id="pn" placeholder="Ex.: Brigadeiro, Ninho, Maracujá"><div class="row"><div><label>Preço de venda</label><input id="pp" inputmode="decimal" placeholder="0,00"></div><div><label>Custo (cada)</label><input id="pc" inputmode="decimal" placeholder="0,00"></div></div><label>Estoque inicial (opcional)</label><input id="pe" type="number" inputmode="numeric" placeholder="Quantas já tem prontas"><button onclick="addP()">Adicionar sabor</button></div>';
-  h+='<h2>Meus sabores</h2><div class="card">'+(S.prods.length?S.prods.map(function(p){return '<div class="item"><div class="l"><b>'+esc(p.n)+'</b><div class="mu">Venda '+R(p.p)+' · Custo '+R(p.c)+'</div>'+stk(p)+'</div><button class="sm" onclick="prod(\''+p.id+'\')">+ Produzi</button><button class="sm sec" onclick="edP(\''+p.id+'\')">Editar</button><button class="sm del" onclick="delP(\''+p.id+'\')">✕</button></div>'}).join(''):'<div class="mu">Nenhum sabor cadastrado.</div>')+'</div>';
+  var h='<div class="card"><label>Nome do sabor</label><input id="pn" placeholder="Ex.: Brigadeiro, Ninho, Maracujá"><div class="row"><div><label>Preço de venda</label><input id="pp" inputmode="decimal" placeholder="0,00"></div></div><label>Estoque inicial (opcional)</label><input id="pe" type="number" inputmode="numeric" placeholder="Quantas já tem prontas"><button onclick="addP()">Adicionar sabor</button></div>';
+  h+='<h2>Meus sabores</h2><div class="card">'+(S.prods.length?S.prods.map(function(p){return '<div class="item"><div class="l"><b>'+esc(p.n)+'</b><div class="mu">Venda '+R(p.p)+'</div>'+stk(p)+'</div><button class="sm" onclick="prod(\''+p.id+'\')">+ Produzi</button><button class="sm sec" onclick="edP(\''+p.id+'\')">Editar</button><button class="sm del" onclick="delP(\''+p.id+'\')">✕</button></div>'}).join(''):'<div class="mu">Nenhum sabor cadastrado.</div>')+'</div>';
   return h;
 }
-function addP(){var n=$('#pn').value.trim(),p=num($('#pp').value),c=num($('#pc').value);if(!n||p<=0){toast('Informe o nome e o preço');return}var e=$('#pe').value;S.prods.push({id:uid(),n:n,p:p,c:c,e:e===''?null:Math.max(0,parseInt(e)||0)});save();toast('Sabor adicionado');render()}
-function edP(id){var p=S.prods.filter(function(x){return x.id==id})[0];if(!p)return;ask('Editar '+esc(p.n),[['Preço de venda (R$)',String(p.p).replace('.',','),'inputmode="decimal"'],['Custo de cada trufa (R$)',String(p.c).replace('.',','),'inputmode="decimal"'],['Estoque atual (vazio = não controlar)',p.e==null?'':p.e,'inputmode="numeric"']],'Salvar').then(function(v){if(!v)return;if(num(v[0])<=0){toast('Informe o preço');return}p.p=num(v[0]);p.c=num(v[1]);var e=v[2].trim();p.e=e===''?null:Math.max(0,parseInt(e)||0);save();toast('Atualizado (vendas antigas não mudam)');render()})}
+function addP(){var n=$('#pn').value.trim(),p=num($('#pp').value),c=0;if(!n||p<=0){toast('Informe o nome e o preço');return}var e=$('#pe').value;S.prods.push({id:uid(),n:n,p:p,c:c,e:e===''?null:Math.max(0,parseInt(e)||0)});save();toast('Sabor adicionado');render()}
+function edP(id){var p=S.prods.filter(function(x){return x.id==id})[0];if(!p)return;ask('Editar '+esc(p.n),[['Preço de venda (R$)',String(p.p).replace('.',','),'inputmode="decimal"'],['Estoque atual (vazio = não controlar)',p.e==null?'':p.e,'inputmode="numeric"']],'Salvar').then(function(v){if(!v)return;if(num(v[0])<=0){toast('Informe o preço');return}p.p=num(v[0]);var e=v[1].trim();p.e=e===''?null:Math.max(0,parseInt(e)||0);save();toast('Atualizado (vendas antigas não mudam)');render()})}
+/* ---------- INSUMOS (inventário de ingredientes e materiais) ---------- */
+/* formata quantidade com vírgula (2,5) */
+function nq(v){return String(Math.round(v*100)/100).replace('.',',')}
+/* situação do item: bad = acabou, warn = pouco, ok = tem */
+function stI(x){return x.q<=0?'bad':(x.m>0&&x.q<=x.m)?'warn':'ok'}
+function vInsumos(){
+  var us=['un','kg','g','litro','ml','pacote','caixa','lata'];
+  var h=cabIns()+'<div class="card"><div class="mu">Chocolate, leite condensado, embalagens, forminhas...</div><label>Item</label><input id="in" placeholder="Ex.: Chocolate em barra"><div class="row"><div><label>Quantidade</label><input id="iq" inputmode="decimal" placeholder="0"></div><div><label>Unidade</label><select id="iu">'+us.map(function(u){return '<option>'+u+'</option>'}).join('')+'</select></div></div><label>Valor pago (R$) por essa quantidade (opcional)</label><input id="iv" inputmode="decimal" placeholder="0,00"><label>Avisar quando restar (opcional)</label><input id="im" inputmode="decimal" placeholder="Ex.: 2"><button onclick="addI()">Adicionar item</button></div>';
+  var l=S.ins.slice().sort(function(a,b){var o={bad:0,warn:1,ok:2};return o[stI(a)]-o[stI(b)]||a.n.localeCompare(b.n)});
+  h+='<h2>Meu estoque de insumos</h2><div class="card">'+(l.length?l.map(function(x){var s=stI(x);return '<div class="item"><div class="l"><b>'+esc(x.n)+'</b><div class="'+s+'">'+(s=='bad'?'ACABOU':(s=='warn'?'POUCO · ':'Tem · ')+nq(x.q)+' '+esc(x.u))+'</div>'+gI(x)+'</div><button class="sm" onclick="compra(\''+x.id+'\')">+ Comprei</button><button class="sm sec" onclick="usei(\''+x.id+'\')">Usei</button><button class="sm sec" onclick="edI(\''+x.id+'\')">Editar</button><button class="sm del" onclick="delI(\''+x.id+'\')">✕</button></div>'}).join(''):'<div class="mu">Nenhum item cadastrado.</div>')+'</div>';h+=listaCompras()+listaUsos();
+  return h}
+function addI(){var n=$('#in').value.trim();if(!n){toast('Informe o nome do item');return}var it={id:uid(),n:n,u:$('#iu').value,q:Math.max(0,num($('#iq').value)),m:Math.max(0,num($('#im').value))},val=num($('#iv').value);S.ins.push(it);if(val>0&&it.q>0)S.exp.push({id:uid(),d:ymd(),t:'Compra: '+nq(it.q)+' '+it.u+' de '+it.n,v:val,iid:it.id,q:it.q});save();toast('Item adicionado');render()}
+function getI(id){return S.ins.filter(function(x){return x.id==id})[0]}
+/* comprou mais: soma no estoque e, se informar o valor, anota em Gastos */
+function compra(id){var x=getI(id);if(!x)return;ask('Comprei mais: '+esc(x.n),[['Quantidade comprada ('+esc(x.u)+')','','inputmode="decimal"'],['Valor pago (R$) — fica registrado neste item (opcional)','','inputmode="decimal"']],'Somar ao estoque').then(function(v){if(!v)return;var n=num(v[0]),val=num(v[1]);if(n<=0){toast('Informe a quantidade');return}x.q+=n;if(val>0)S.exp.push({id:uid(),d:ymd(),t:'Compra: '+nq(n)+' '+x.u+' de '+x.n,v:val,iid:x.id,q:n});save();toast(val>0?'Estoque atualizado e gasto anotado':'Estoque atualizado');render()})}
+/* usou: desconta do estoque */
+function usei(id){var x=getI(id);if(!x)return;ask('Usei: '+esc(x.n),[['Quantidade usada ('+esc(x.u)+')','','inputmode="decimal"']],'Descontar do estoque').then(function(v){var n=v?num(v[0]):0;if(n>0){S.use.push({id:uid(),d:ymd(),iid:x.id,n:x.n,u:x.u,q:n,c:n*unit(x)});x.q=Math.max(0,x.q-n);save();toast(x.q<=0?'Acabou! Anote para comprar':'Estoque atualizado');render()}})}
+function edI(id){var x=getI(id);if(!x)return;ask('Editar item',[['Nome',x.n,''],['Quantidade atual ('+esc(x.u)+')',nq(x.q),'inputmode="decimal"'],['Avisar quando restar',nq(x.m),'inputmode="decimal"'],['Valor pago pelo estoque atual (R$, opcional)','','inputmode="decimal"']],'Salvar').then(function(v){if(!v)return;if(!v[0].trim()){toast('Informe o nome');return}x.n=v[0].trim();x.q=Math.max(0,num(v[1]));x.m=Math.max(0,num(v[2]));var pv=num(v[3]);if(pv>0&&x.q>0)S.exp.push({id:uid(),d:ymd(),t:'Compra: '+nq(x.q)+' '+x.u+' de '+x.n,v:pv,iid:x.id,q:x.q});save();toast('Atualizado');render()})}
+function delI(id){ask('Apagar este item do inventário?',null,'Apagar').then(function(y){if(y){S.ins=S.ins.filter(function(x){return x.id!=id});save();render()}})}
+/* gasto total e do mês de um item (soma das compras ligadas a ele) */
+function gI(x){var m=0,t=0,mm=ymd().slice(0,7);S.exp.forEach(function(e){if(e.iid==x.id){t+=e.v;if(e.d.slice(0,7)==mm)m+=e.v}});return t>0?'<div class="mu">Gasto: '+R(m)+' no mês · '+R(t)+' no total</div>':''}
+/* cabeçalho: total gasto no mês + botão de gasto avulso */
+function cabIns(){var mm=ymd().slice(0,7),t=0;S.exp.forEach(function(e){if(e.d.slice(0,7)==mm)t+=e.v});return '<div class="card"><div class="mu">Gasto com compras neste mês</div><div class="big">'+R(t)+'</div><button class="sec" onclick="avulso()">+ Gasto avulso (gás, entrega...)</button></div>'}
+/* gasto que não é de nenhum item do estoque */
+function avulso(){ask('Gasto avulso (sem item do estoque)',[['O que foi','','placeholder="Ex.: gás, entrega"'],['Valor (R$)','','inputmode="decimal"']],'Anotar gasto').then(function(v){if(!v)return;var t=v[0].trim(),val=num(v[1]);if(!t||val<=0){toast('Preencha o nome e o valor');return}S.exp.push({id:uid(),d:ymd(),t:t,v:val});save();toast('Gasto anotado');render()})}
+/* lista das compras e gastos do mês atual */
+function listaCompras(){var mm=ymd().slice(0,7),l=S.exp.filter(function(e){return e.d.slice(0,7)==mm}).reverse();return '<h2>Compras e gastos do mês</h2><div class="card">'+(l.length?l.map(function(e){return '<div class="item"><div class="l"><b>'+esc(e.t)+'</b><div class="mu">'+br(e.d)+'</div></div><b>'+R(e.v)+'</b><button class="sm del" onclick="delC(\''+e.id+'\')">✕</button></div>'}).join(''):'<div class="mu">Nenhuma compra neste mês.</div>')+'</div>'}
+/* apagar uma compra: se era de um item, tira a quantidade do estoque */
+function delC(id){var e=S.exp.filter(function(x){return x.id==id})[0];if(!e)return;ask('Apagar este gasto?'+(e.iid?'\nO estoque do item será ajustado.':''),null,'Apagar').then(function(y){if(!y)return;var x=e.iid&&getI(e.iid);if(x&&e.q){x.q=Math.max(0,x.q-e.q)}S.exp=S.exp.filter(function(z){return z.id!=id});save();render()})}
+/* custo médio de 1 unidade do insumo = valor pago ÷ quantidade comprada (só compras com valor) */
+function unit(x){var q=0,v=0;S.exp.forEach(function(e){if(e.iid==x.id&&e.q>0){q+=e.q;v+=e.v}});return q>0?v/q:0}
+/* valor em R$ do que ainda tem em estoque */
+function vest(){var t=0;S.ins.forEach(function(x){t+=x.q*unit(x)});return t}
+/* aviso no lucro: usos de insumo sem preço no mês */
+function semPreco(){var n=S.use.filter(function(u){return u.d.slice(0,7)==mes&&u.c<=0}).length;return n?'<div class="warn">⚠ '+n+' uso(s) de insumo sem preço: o lucro pode estar maior que o real</div>':''}
+/* lista de usos do mês atual */
+function listaUsos(){var mm=ymd().slice(0,7),l=S.use.filter(function(e){return e.d.slice(0,7)==mm}).reverse();return '<h2>Insumos usados no mês</h2><div class="card">'+(l.length?l.map(function(e){return '<div class="item"><div class="l"><b>'+esc(e.n)+'</b><div class="mu">'+br(e.d)+' · '+nq(e.q)+' '+esc(e.u)+(e.c>0?'':' · sem preço')+'</div></div><b>'+R(e.c)+'</b><button class="sm del" onclick="delU(\''+e.id+'\')">✕</button></div>'}).join(''):'<div class="mu">Nenhum uso registrado neste mês.</div>')+'</div>'}
+/* apagar um uso: devolve a quantidade ao estoque */
+function delU(id){var e=S.use.filter(function(x){return x.id==id})[0];if(!e)return;ask('Apagar este uso? A quantidade volta para o estoque.',null,'Apagar').then(function(y){if(!y)return;var x=getI(e.iid);if(x){x.q+=e.q}S.use=S.use.filter(function(z){return z.id!=id});save();render()})}
 /* mostra o estoque do sabor (vermelho se acabou, amarelo se baixo) */
 function stk(p){return p.e==null?'':'<div class="'+(p.e<=0?'bad':p.e<=5?'warn':'mu')+'">Estoque: '+p.e+(p.e<=0?' (acabou)':'')+'</div>'}
 /* soma trufas recém-feitas ao estoque */
 function prod(id){var p=S.prods.filter(function(x){return x.id==id})[0];if(!p)return;ask('Quantas trufas de '+esc(p.n)+' você fez agora?',[['Quantidade','10','inputmode="numeric"']],'Somar ao estoque').then(function(v){var n=v?parseInt(v[0]):0;if(n>0){p.e=(p.e||0)+n;save();toast('Estoque atualizado');render()}})}
 /* avisos no Resumo: encomendas para hoje/atrasadas e estoque baixo */
-function alertas(){var h='',hj=ymd();var o=S.ord.filter(function(x){return x.d<=hj});if(o.length)h+='<div class="card"><b class="warn">📅 '+o.length+' encomenda(s) para entregar hoje ou atrasada(s)</b><button class="sec" onclick="go(\'pedidos\')">Ver encomendas</button></div>';var b=S.prods.filter(function(x){return x.e!=null&&x.e<=5});if(b.length)h+='<div class="card"><b class="warn">🍫 Estoque baixo:</b> '+b.map(function(x){return esc(x.n)+' ('+x.e+')'}).join(', ')+'</div>';return h}
+function alertas(){var h='',hj=ymd();var o=S.ord.filter(function(x){return x.d<=hj});if(o.length)h+='<div class="card"><b class="warn">📅 '+o.length+' encomenda(s) para entregar hoje ou atrasada(s)</b><button class="sec" onclick="go(\'pedidos\')">Ver encomendas</button></div>';var b=S.prods.filter(function(x){return x.e!=null&&x.e<=5});if(b.length)h+='<div class="card"><b class="warn">🍫 Estoque baixo:</b> '+b.map(function(x){return esc(x.n)+' ('+x.e+')'}).join(', ')+'</div>';var z=S.ins.filter(function(x){return x.q<=0||(x.m>0&&x.q<=x.m)});if(z.length)h+='<div class="card"><b class="warn">🧂 Insumos acabando:</b> '+z.map(function(x){return esc(x.n)+(x.q<=0?' (acabou)':' ('+nq(x.q)+' '+esc(x.u)+')')}).join(', ')+'<button class="sec" onclick="go(\'insumos\')">Ver insumos</button></div>';return h}
 /* monta o texto do resumo do mês e abre o WhatsApp */
-function zap(){var t=0,c=0,u=0,o=0,r=0;S.sales.forEach(function(s){if(s.d.slice(0,7)==mes){t+=s.q*s.p;c+=s.q*s.c;u+=s.q}if(!s.paid)r+=s.q*s.p});S.exp.forEach(function(e){if(e.d.slice(0,7)==mes)o+=e.v});var tx='🍫 Resumo das trufas — '+mes.split('-').reverse().join('/')+'\n• Trufas vendidas: '+u+'\n• Vendido: '+R(t)+'\n• Custo das trufas: '+R(c)+'\n• Outros gastos: '+R(o)+'\n• Lucro: '+R(t-c-o)+'\n• A receber: '+R(r);var w=window.open('https://wa.me/?text='+encodeURIComponent(tx),'_blank');if(!w){ask('Copie o resumo e cole no WhatsApp:',[['Resumo',tx,'area']],'Copiar','Fechar').then(function(v){if(v){try{navigator.clipboard.writeText(v[0]);toast('Copiado!')}catch(e){}}})}}
+function zap(){var t=0,c=0,u=0,o=0,r=0;S.sales.forEach(function(s){if(s.d.slice(0,7)==mes){t+=s.q*s.p;u+=s.q}if(!s.paid)r+=s.q*s.p});S.exp.forEach(function(e){if(e.d.slice(0,7)==mes&&!e.iid)o+=e.v});S.use.forEach(function(e){if(e.d.slice(0,7)==mes)c+=e.c});var tx='🍫 Resumo das trufas — '+mes.split('-').reverse().join('/')+'\n• Trufas vendidas: '+u+'\n• Vendido: '+R(t)+'\n• Insumos usados: '+R(c)+'\n• Gastos avulsos: '+R(o)+'\n• Lucro: '+R(t-c-o)+'\n• A receber: '+R(r);var w=window.open('https://wa.me/?text='+encodeURIComponent(tx),'_blank');if(!w){ask('Copie o resumo e cole no WhatsApp:',[['Resumo',tx,'area']],'Copiar','Fechar').then(function(v){if(v){try{navigator.clipboard.writeText(v[0]);toast('Copiado!')}catch(e){}}})}}
 /* ---------- PEDIDOS (encomendas) ---------- */
 function vPedidos(){
   if(!S.prods.length)return '<div class="card">Primeiro cadastre seus sabores na aba <b>Sabores</b> 🍫</div><button onclick="go(\'sabores\')">Cadastrar sabores</button>';
